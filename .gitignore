@@ -1,10 +1,10 @@
+# Dépendances (réinstallées par npm install / npm ci)
 /node_modules
+
+# Builds et cache Angular (régénérés par ng build / ng serve)
 /dist
-/out-tsc
 /.angular
-/.vscode/*
-!.vscode/extensions.json
-npm-debug.log
-*.log
+
+# Fichiers système
 .DS_Store
 Thumbs.db
