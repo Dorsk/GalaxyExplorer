@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { BUILDINGS_BY_ID } from '../../core/data/buildings.data';
 import { GameEngineService } from '../../core/services/game-engine.service';
 import { GameStateService } from '../../core/services/game-state.service';
+import { ShipyardService } from '../../core/services/shipyard.service';
 import { TechTreeService } from '../../core/services/tech-tree.service';
 import { formatDuration } from '../../shared/format';
 
 interface Activity {
-  kind: 'build' | 'research';
+  kind: 'build' | 'research' | 'ship';
   label: string;
   icon: string;
   name: string;
@@ -46,6 +47,8 @@ interface Activity {
     li.demolish { border-left-color: var(--danger); }
     li.demolish .progress > div { background: var(--danger); }
     li[data-kind='research'] .progress > div { background: var(--accent-2); }
+    li[data-kind='ship'] { border-left-color: var(--warning); }
+    li[data-kind='ship'] .progress > div { background: var(--warning); }
     .row { display: flex; align-items: center; gap: 8px; }
     .label { flex: 1; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
     .time { color: var(--accent); white-space: nowrap; }
@@ -57,6 +60,7 @@ export class ActivityComponent {
   private readonly engine = inject(GameEngineService);
   private readonly state = inject(GameStateService);
   private readonly tree = inject(TechTreeService);
+  private readonly shipyard = inject(ShipyardService);
 
   protected readonly activities = computed(() => {
     const list: Activity[] = [];
@@ -83,12 +87,27 @@ export class ActivityComponent {
         progress: research.progress * 100,
       });
     }
+    const ship = this.shipyard.current();
+    if (ship) {
+      list.push({
+        kind: 'ship',
+        label: 'Chantier spatial',
+        icon: ship.def.icon,
+        name: ship.def.name,
+        remaining: formatDuration(Math.ceil(ship.remaining)),
+        progress: ship.progress * 100,
+      });
+    }
     return list;
   });
 
   protected cancel(kind: Activity['kind']): void {
     if (kind === 'research') {
       this.tree.cancel();
+      return;
+    }
+    if (kind === 'ship') {
+      this.shipyard.cancel();
       return;
     }
     const job = this.state.constructionQueue()[0];

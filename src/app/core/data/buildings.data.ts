@@ -6,6 +6,7 @@ export const BUILDING_CATEGORIES: readonly { id: BuildingCategory; name: string;
   { id: 'energy', name: 'Énergie', icon: '⚡' },
   { id: 'research', name: 'Recherche', icon: '🔬' },
   { id: 'comfort', name: 'Confort & Loisirs', icon: '🎡' },
+  { id: 'trade', name: 'Commerce spatial', icon: '🛒' },
 ];
 
 export const BUILDINGS: readonly BuildingDef[] = [
@@ -140,6 +141,13 @@ export const BUILDINGS: readonly BuildingDef[] = [
     id: 'powerGrid', name: 'Réseau électrique', icon: '💡', category: 'comfort', terrain: 'land', size: 0,
     description: 'Lumière et électroménager dans chaque foyer. Sans emprise au sol.',
     baseCost: { wood: 2_000 }, costGrowth: 1.15, buildTime: 120, comfort: 1_200, consumes: { energy: 3 },
+  },
+
+  // ── Commerce spatial ──────────────────────────────────────────
+  {
+    id: 'spaceShipyard', name: 'Chantier spatial', icon: '🏗️', category: 'trade', terrain: 'land', size: 2,
+    description: 'Construit les vaisseaux cargo. Ouvre l’onglet Chantier spatial. Un seul par planète.',
+    baseCost: { wood: 500_000, energy: 300_000 }, costGrowth: 1, buildTime: 900, workers: 50, maxCount: 1,
   },
 ];
 

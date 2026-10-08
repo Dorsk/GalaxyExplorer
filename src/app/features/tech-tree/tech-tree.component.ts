@@ -63,13 +63,13 @@ import { FormatNumberPipe } from '../../shared/format-number.pipe';
                 >
                   <div class="n-head">
                     <span class="n-icon">{{ node.def.icon }}</span>
-                    <strong>{{ node.def.name }}</strong>
+                    <strong>{{ node.def.name }}@if (node.def.repeatable) {<span class="lvl"> · niv. {{ node.level }}/{{ node.def.repeatable.maxLevel }}</span>}</strong>
                     @if (node.status === 'researched') {
                       <span class="done">✓</span>
                     } @else if (node.status === 'researching') {
                       <span class="cost mono">⏳ {{ duration(tree.current()?.remaining ?? 0) }}</span>
                     } @else {
-                      <span class="cost mono">🔬 {{ node.def.cost | fmt }} · ⏱ {{ duration(node.duration) }}</span>
+                      <span class="cost mono">🔬 {{ node.cost | fmt }} · ⏱ {{ duration(node.duration) }}</span>
                     }
                   </div>
                   @if (node.status === 'researching') {
@@ -89,6 +89,12 @@ import { FormatNumberPipe } from '../../shared/format-number.pipe';
                       }
                     </p>
                   }
+                  @if (node.needsColony) {
+                    <p class="requires">🔒 Requiert une colonie fondée avec l’Arche Spatiale</p>
+                  }
+                  @if (node.def.requiresColonies && node.status !== 'researched') {
+                    <p class="optional">Facultatif : le commerce n’est nécessaire à aucune autre découverte.</p>
+                  }
                 </button>
               }
             </div>
@@ -107,6 +113,8 @@ import { FormatNumberPipe } from '../../shared/format-number.pipe';
     .node[data-status='researching'] { border-color: var(--branch); background: color-mix(in srgb, var(--branch) 8%, transparent); }
     .node[data-status='available'].affordable.busy { box-shadow: none; }
     .n-progress { margin-top: 6px; }
+    .lvl { font-weight: normal; color: var(--muted); font-size: 0.8rem; }
+    .optional { margin: 4px 0 0; font-size: 0.72rem; color: var(--muted); font-style: italic; }
     .n-progress > div { background: var(--branch); }
     .intro p { margin: 0; max-width: 640px; }
     .rp { display: flex; flex-direction: column; align-items: flex-end; }

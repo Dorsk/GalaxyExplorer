@@ -4,6 +4,8 @@ import { GATHER_TASK_IDS } from '../data/gathering.data';
 import { PLANETS_BY_ID } from '../data/planets.data';
 import { RESOURCE_IDS, resourceEntries } from '../data/resources.data';
 import { TALENTS_BY_ID } from '../data/talents.data';
+import { MERCHANT_UPGRADES, TRADE_GOOD_IDS, defaultTradeOrders } from '../data/trade.data';
+import { SHIPS, SHIPS_BY_ID } from '../data/ships.data';
 import { computeEconomy, effectiveGatherers, freePopulation } from '../engine/economy';
 import { computeModifiers } from '../engine/modifiers';
 import { decodeSave, encodeSave } from '../engine/save-codec';
@@ -23,12 +25,16 @@ import {
   GameStats,
   LogEntry,
   LogKind,
+  MerchantLevels,
   PlanetId,
   ResearchJob,
   ResourceAmounts,
   Resources,
   SaveData,
+  ShipCounts,
+  ShipJob,
   TalentId,
+  TradeOrders,
 } from '../models/game.models';
 
 const MAX_LOG_ENTRIES = 60;
@@ -61,6 +67,12 @@ function createInitialSave(): SaveData {
     colonies: [],
     arkBuilt: false,
     stats: initialStats(),
+    credits: 0,
+    tradeOrders: defaultTradeOrders(),
+    merchantLevels: {},
+    tradeTimer: 0,
+    ships: {},
+    shipJob: null,
   };
 }
 
@@ -99,9 +111,18 @@ export class GameStateService {
   readonly colonies = signal<readonly PlanetId[]>([]);
   readonly arkBuilt = signal(false);
   readonly stats = signal<GameStats>(initialStats());
+  // Commerce galactique : conservé d'une colonie à l'autre.
+  readonly credits = signal(0);
+  readonly tradeOrders = signal<TradeOrders>(defaultTradeOrders());
+  readonly merchantLevels = signal<MerchantLevels>({});
+  /** Secondes écoulées depuis le dernier départ de la flotte cargo. */
+  readonly tradeTimer = signal(0);
+  /** Vaisseaux cargo construits (nombre illimité) et vaisseau en construction au chantier spatial. */
+  readonly ships = signal<ShipCounts>({});
+  readonly shipJob = signal<ShipJob | null>(null);
   readonly log = signal<readonly LogEntry[]>([]);
 
-  readonly modifiers = computed(() => computeModifiers(this.talents(), this.colonies()));
+  readonly modifiers = computed(() => computeModifiers(this.talents(), this.colonies(), this.merchantLevels()));
   /** Nombre de bâtiments de chaque type en file de construction. */
   readonly pendingBuildings = computed(() => {
     const counts: BuildingCounts = {};
@@ -186,6 +207,9 @@ export class GameStateService {
     this.talents.set([]);
     this.research.set(null);
     this.arkBuilt.set(false);
+    this.tradeTimer.set(0);
+    this.ships.set({});
+    this.shipJob.set(null);
     this.stats.update((s) => ({ ...s, runTime: 0, runPeakPopulation: population, arksLaunched: s.arksLaunched + 1 }));
   }
 
@@ -206,6 +230,12 @@ export class GameStateService {
       colonies: [...this.colonies()],
       arkBuilt: this.arkBuilt(),
       stats: this.stats(),
+      credits: this.credits(),
+      tradeOrders: this.tradeOrders(),
+      merchantLevels: this.merchantLevels(),
+      tradeTimer: this.tradeTimer(),
+      ships: this.ships(),
+      shipJob: this.shipJob(),
     };
   }
 
@@ -282,7 +312,14 @@ export class GameStateService {
       if (n > 0) buildings[b.id] = n;
     }
 
-    const talents = (Array.isArray(data.talents) ? data.talents : []).filter((t) => t in TALENTS_BY_ID);
+    // Un talent à niveaux figure une fois par niveau ; les autres une seule fois.
+    const talents: TalentId[] = [];
+    for (const t of Array.isArray(data.talents) ? data.talents : []) {
+      const def = TALENTS_BY_ID[t];
+      if (!def) continue;
+      const level = talents.filter((x) => x === t).length;
+      if (level < (def.repeatable?.maxLevel ?? 1)) talents.push(t);
+    }
     const colonies = (Array.isArray(data.colonies) ? data.colonies : []).filter((p) => p in PLANETS_BY_ID);
     const planet = data.planet && data.planet in PLANETS_BY_ID ? data.planet : d.planet;
 
@@ -308,7 +345,7 @@ export class GameStateService {
 
     const r = data.research;
     const research: ResearchJob | null =
-      r && r.talent in TALENTS_BY_ID && !talents.includes(r.talent)
+      r && r.talent in TALENTS_BY_ID && talents.filter((t) => t === r.talent).length < (TALENTS_BY_ID[r.talent].repeatable?.maxLevel ?? 1)
         ? { talent: r.talent, total: Math.max(1, finite(r.total, 1)), remaining: Math.max(0, finite(r.remaining, 0)) }
         : null;
 
@@ -323,6 +360,34 @@ export class GameStateService {
       assignments[id] = Math.floor(legacyPercent ? (free * raw) / 100 : raw);
     }
 
+    const tradeOrders = defaultTradeOrders();
+    for (const id of TRADE_GOOD_IDS) {
+      const o = data.tradeOrders?.[id];
+      tradeOrders[id] = { enabled: o?.enabled === true, reserve: Math.max(0, finite(o?.reserve, 0)) };
+    }
+    const merchantLevels: MerchantLevels = {};
+    for (const u of MERCHANT_UPGRADES) {
+      const level = Math.min(u.maxLevel, Math.max(0, Math.floor(finite(data.merchantLevels?.[u.id], 0))));
+      if (level > 0) merchantLevels[u.id] = level;
+    }
+
+    const ships: ShipCounts = {};
+    for (const s of SHIPS) {
+      const n = Math.floor(finite(data.ships?.[s.id], 0));
+      if (n > 0) ships[s.id] = n;
+    }
+    const sj = data.shipJob;
+    const shipDef = sj ? SHIPS_BY_ID[sj.ship] : undefined;
+    const shipJob: ShipJob | null =
+      sj && shipDef
+        ? {
+            ship: shipDef.id,
+            total: Math.max(1, finite(sj.total, shipDef.buildTime)),
+            remaining: Math.max(0, finite(sj.remaining, shipDef.buildTime)),
+            paid: Object.fromEntries(RESOURCE_IDS.map((id) => [id, Math.max(0, finite(sj.paid?.[id], 0))]).filter(([, v]) => (v as number) > 0)),
+          }
+        : null;
+
     const stats = { ...d.stats };
     for (const key of Object.keys(stats) as (keyof GameStats)[]) stats[key] = finite(data.stats?.[key], d.stats[key]);
 
@@ -331,11 +396,17 @@ export class GameStateService {
     this.assignments.set(effectiveGatherers(assignments, free));
     this.buildings.set(buildings);
     this.constructionQueue.set(constructionQueue);
-    this.talents.set([...new Set(talents)]);
+    this.talents.set(talents);
     this.research.set(research);
     this.colonies.set(colonies);
     this.planet.set(planet);
     this.arkBuilt.set(data.arkBuilt === true);
     this.stats.set(stats);
+    this.credits.set(Math.max(0, finite(data.credits, 0)));
+    this.tradeOrders.set(tradeOrders);
+    this.merchantLevels.set(merchantLevels);
+    this.tradeTimer.set(Math.max(0, finite(data.tradeTimer, 0)));
+    this.ships.set(ships);
+    this.shipJob.set(shipJob);
   }
 }

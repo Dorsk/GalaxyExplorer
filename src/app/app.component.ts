@@ -3,6 +3,9 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { GameEngineService } from './core/services/game-engine.service';
 import { GameStateService } from './core/services/game-state.service';
 import { TechTreeService } from './core/services/tech-tree.service';
+import { ShipyardService } from './core/services/shipyard.service';
+import { TradeService } from './core/services/trade.service';
+import { formatValue } from './shared/format';
 import { ResourceBarComponent } from './shared/resource-bar.component';
 
 @Component({
@@ -23,6 +26,9 @@ import { ResourceBarComponent } from './shared/resource-bar.component';
         <span class="chip">{{ planet().icon }} {{ planet().name }}</span>
         @if (colonies() > 0) {
           <span class="chip">🌌 {{ colonies() }} colonie{{ colonies() > 1 ? 's' : '' }}</span>
+        }
+        @if (credits() > 0 || tradeUnlocked()) {
+          <span class="chip" title="Crédits galactiques">💰 {{ creditsLabel() }}</span>
         }
         <button class="btn btn-ghost icon-link" (click)="save()" title="Sauvegarder maintenant" aria-label="Sauvegarder">💾</button>
         <a class="btn btn-ghost icon-link" routerLink="parametres" routerLinkActive="active" title="Paramètres" aria-label="Paramètres">⚙️</a>
@@ -74,10 +80,15 @@ export class AppComponent implements OnInit {
   private readonly engine = inject(GameEngineService);
   private readonly state = inject(GameStateService);
   private readonly tree = inject(TechTreeService);
+  private readonly trade = inject(TradeService);
+  private readonly shipyard = inject(ShipyardService);
 
   protected readonly version = VERSION.full;
   protected readonly planet = this.state.planetDef;
   protected readonly colonies = computed(() => this.state.colonies().length);
+  protected readonly credits = this.state.credits;
+  protected readonly tradeUnlocked = computed(() => this.trade.unlocked());
+  protected readonly creditsLabel = computed(() => formatValue(this.state.credits()));
 
   protected readonly tabs = computed(() => {
     const available = this.tree.availableCount();
@@ -86,6 +97,14 @@ export class AppComponent implements OnInit {
       { path: 'talents', icon: '🧠', label: 'Arbres de Talents', badge: this.tree.current() ? '⏳' : available > 0 ? String(available) : '' },
       { path: 'population', icon: '📊', label: 'Population & Statistiques', badge: '' },
       { path: 'galaxie', icon: '🌌', label: 'Exploration Galactique', badge: this.state.galaxyUnlocked() ? '' : '🔒' },
+      // Le commerce (facultatif) n'apparaît qu'après la première colonie.
+      ...(this.colonies() > 0
+        ? [{ path: 'commerce', icon: '🛒', label: 'Commerce', badge: this.trade.unlocked() ? '' : '🔒' }]
+        : []),
+      // Le chantier spatial n'apparaît qu'une fois le bâtiment construit.
+      ...(this.shipyard.unlocked()
+        ? [{ path: 'chantier-spatial', icon: '🏗️', label: 'Chantier spatial', badge: this.shipyard.current() ? '⏳' : '' }]
+        : []),
     ];
   });
 

@@ -55,6 +55,11 @@ export const ARK_BASE_COST: Resources = {
 };
 export const ARK_COST_GROWTH = 2.5;
 
+/** Commerce galactique : un départ de la flotte toutes les TRADE_TRIP_SECONDS. */
+export const TRADE_TRIP_SECONDS = 60;
+/** Vaisseaux pouvant voler en même temps sans le talent Logistique de flotte. */
+export const BASE_FLEET_SIZE = 1;
+
 /** Un seul bâtiment en construction à la fois. */
 export const CONSTRUCTION_QUEUE_MAX = 1;
 

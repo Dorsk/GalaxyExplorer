@@ -26,7 +26,7 @@ export interface GatherTaskDef {
   clickAmount: number;
 }
 
-export type BuildingCategory = 'housing' | 'production' | 'energy' | 'research' | 'comfort';
+export type BuildingCategory = 'housing' | 'production' | 'energy' | 'research' | 'comfort' | 'trade';
 
 export type BuildingId =
   // Habitations
@@ -57,7 +57,9 @@ export type BuildingId =
   // Confort & loisirs
   | 'park'
   | 'theater'
-  | 'powerGrid';
+  | 'powerGrid'
+  // Commerce spatial
+  | 'spaceShipyard';
 
 export type BuildingCounts = Partial<Record<BuildingId, number>>;
 
@@ -94,7 +96,11 @@ export type TalentId =
   | 'fusionPower'
   | 'rockets'
   | 'observatories'
-  | 'warpDrive';
+  | 'warpDrive'
+  // Commerce (facultatif, après la première colonie)
+  | 'cargoShips'
+  | 'galacticMerchant'
+  | 'fleetLogistics';
 
 export type PlanetId = 'earth' | 'proxima' | 'trappist' | 'kepler442' | 'gliese' | 'kepler186' | 'hd40307';
 
@@ -107,7 +113,14 @@ export type Effect =
   | { kind: 'housing'; value: number }
   | { kind: 'happiness'; value: number }
   | { kind: 'birthRate'; value: number }
-  | { kind: 'unlockGalaxy' };
+  | { kind: 'cargoCapacity'; value: number }
+  /** Nombre de vaisseaux cargo pouvant voler en même temps. */
+  | { kind: 'fleetSize'; value: number }
+  /** Valeur négative = durée réduite (-0.1 = 10 % plus rapide). */
+  | { kind: 'buildTime'; value: number }
+  | { kind: 'researchTime'; value: number }
+  | { kind: 'unlockGalaxy' }
+  | { kind: 'unlockTrade' };
 
 export interface ResourceDef {
   id: ResourceId;
@@ -143,6 +156,8 @@ export interface BuildingDef {
   /** Consommation par seconde et par bâtiment. */
   consumes?: ResourceAmounts;
   workers?: number;
+  /** Nombre maximal d'exemplaires (ex. : un seul chantier spatial). */
+  maxCount?: number;
   /** Nombre d'habitants dont ce bâtiment assure le confort. */
   comfort?: number;
   startsUnlocked?: boolean;
@@ -165,6 +180,10 @@ export interface TalentDef {
   description: string;
   cost: number;
   requires: readonly TalentId[];
+  /** Nombre de colonies fondées nécessaire pour rechercher ce talent. */
+  requiresColonies?: number;
+  /** Talent recherchable plusieurs fois ; chaque niveau coûte costGrowth fois plus cher que le précédent. */
+  repeatable?: { maxLevel: number; costGrowth: number };
   effects: readonly Effect[];
 }
 
@@ -208,6 +227,64 @@ export interface ResearchJob {
   total: number;
 }
 
+export type ShipTypeId = 'lightCargo' | 'heavyCargo' | 'warpCargo';
+export type ShipCounts = Partial<Record<ShipTypeId, number>>;
+
+export interface ShipDef {
+  id: ShipTypeId;
+  name: string;
+  icon: string;
+  description: string;
+  /** Unités transportées par voyage (avant améliorations). */
+  capacity: number;
+  cost: ResourceAmounts;
+  buildTime: number;
+  /** Talent nécessaire pour construire ce modèle. */
+  requires?: TalentId;
+}
+
+/** Vaisseau en construction au chantier spatial (un à la fois). */
+export interface ShipJob {
+  ship: ShipTypeId;
+  remaining: number;
+  total: number;
+  paid: ResourceAmounts;
+}
+
+/** Ressources vendables au marchand galactique. */
+export type TradeGoodId = 'food' | 'wood' | 'water' | 'energy';
+
+/** Consigne de vente : les vaisseaux emportent ce qui dépasse la réserve. Désactivée par défaut. */
+export interface TradeOrder {
+  enabled: boolean;
+  reserve: number;
+}
+
+export type TradeOrders = Record<TradeGoodId, TradeOrder>;
+
+export type MerchantUpgradeId =
+  | 'cargoEngines'
+  | 'exoticSeeds'
+  | 'energyCrystals'
+  | 'ancientArchives'
+  | 'constructionDrones'
+  | 'researchAI';
+
+export type MerchantLevels = Partial<Record<MerchantUpgradeId, number>>;
+
+export interface MerchantUpgradeDef {
+  id: MerchantUpgradeId;
+  name: string;
+  icon: string;
+  description: string;
+  /** Prix du niveau 1 en crédits ; multiplié par costGrowth à chaque niveau. */
+  baseCost: number;
+  costGrowth: number;
+  maxLevel: number;
+  /** Effet d'un niveau (cumulé à chaque niveau acheté). */
+  effect: Effect;
+}
+
 export type LogKind = 'info' | 'success' | 'warning' | 'danger';
 
 export interface LogEntry {
@@ -231,4 +308,11 @@ export interface SaveData {
   colonies: PlanetId[];
   arkBuilt: boolean;
   stats: GameStats;
+  /** Commerce : conservé d'une colonie à l'autre. */
+  credits: number;
+  tradeOrders: TradeOrders;
+  merchantLevels: MerchantLevels;
+  tradeTimer: number;
+  ships: ShipCounts;
+  shipJob: ShipJob | null;
 }

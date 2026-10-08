@@ -23,6 +23,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/galaxy/galaxy.component').then((m) => m.GalaxyComponent),
   },
   {
+    path: 'commerce',
+    title: 'GalaxyExplorer · Commerce galactique',
+    loadComponent: () => import('./features/trade/trade.component').then((m) => m.TradeComponent),
+  },
+  {
+    path: 'chantier-spatial',
+    title: 'GalaxyExplorer · Chantier spatial',
+    loadComponent: () => import('./features/shipyard/shipyard.component').then((m) => m.ShipyardComponent),
+  },
+  {
     path: 'parametres',
     title: 'GalaxyExplorer · Paramètres',
     loadComponent: () => import('./features/settings/settings.component').then((m) => m.SettingsComponent),

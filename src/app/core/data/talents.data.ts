@@ -178,6 +178,26 @@ export const TALENTS: readonly TalentDef[] = [
     description: 'Plier l’espace-temps pour atteindre les étoiles.',
     effects: [{ kind: 'unlockGalaxy' }],
   },
+
+  // Commerce : facultatif, accessible après la première colonie, prérequis d'aucun autre talent.
+  {
+    id: 'cargoShips', branch: 'tech', tier: 8, name: 'Vaisseaux cargo', icon: '🚢', cost: 1_500_000,
+    requires: ['rockets'], requiresColonies: 1,
+    description: 'Des cargos interstellaires pour exporter vos surplus. Un vaisseau peut voler à la fois.',
+    effects: [{ kind: 'unlockBuilding', building: 'spaceShipyard' }],
+  },
+  {
+    id: 'fleetLogistics', branch: 'tech', tier: 9, name: 'Logistique de flotte', icon: '🛰️', cost: 2_000_000,
+    requires: ['cargoShips'], requiresColonies: 1, repeatable: { maxLevel: 20, costGrowth: 1.8 },
+    description: 'Coordonner plus de cargos en même temps. Chaque niveau coûte plus cher que le précédent.',
+    effects: [{ kind: 'fleetSize', value: 1 }],
+  },
+  {
+    id: 'galacticMerchant', branch: 'tech', tier: 9, name: 'Marchand galactique', icon: '🏪', cost: 3_000_000,
+    requires: ['cargoShips'], requiresColonies: 1,
+    description: 'Un comptoir commercial qui achète vos ressources et vend des technologies rares.',
+    effects: [{ kind: 'unlockTrade' }],
+  },
 ];
 
 export const TALENTS_BY_ID = Object.fromEntries(TALENTS.map((t) => [t.id, t])) as Record<TalentId, TalentDef>;

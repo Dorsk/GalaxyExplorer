@@ -106,7 +106,7 @@ export class BuildingCardComponent {
   protected readonly owned = computed(() => this.state.buildings()[this.building().id] ?? 0);
   protected readonly pending = computed(() => this.state.pendingBuildings()[this.building().id] ?? 0);
   protected readonly terrain = computed(() => TERRAINS_BY_ID[this.building().terrain]);
-  protected readonly buildTime = computed(() => formatDuration(this.building().buildTime));
+  protected readonly buildTime = computed(() => formatDuration(this.engine.buildDuration(this.building().id)));
 
   protected readonly cost = computed(() => {
     const res = this.state.resources();

@@ -23,6 +23,8 @@ import { BuildingId, ConstructionJob, GatherTaskId, PlanetId, ResourceAmounts } 
 import { formatDuration, formatValue } from '../../shared/format';
 import { GameStateService } from './game-state.service';
 import { TechTreeService } from './tech-tree.service';
+import { ShipyardService } from './shipyard.service';
+import { TradeService } from './trade.service';
 
 /**
  * Boucle de jeu (tick chaque seconde via `interval` RxJS) et commandes du joueur.
@@ -32,6 +34,8 @@ import { TechTreeService } from './tech-tree.service';
 export class GameEngineService {
   private readonly state = inject(GameStateService);
   private readonly tree = inject(TechTreeService);
+  private readonly trade = inject(TradeService);
+  private readonly shipyard = inject(ShipyardService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly running = signal(false);
@@ -104,6 +108,8 @@ export class GameEngineService {
     this.trimAssignments();
     this.advanceConstruction(dt, silent);
     this.tree.advance(dt);
+    this.shipyard.advance(dt, silent);
+    this.trade.advance(dt, silent);
 
     const previousPeak = s.stats().runPeakPopulation;
     s.stats.update((st) => ({
@@ -168,6 +174,9 @@ export class GameEngineService {
     const def = BUILDINGS_BY_ID[id];
     if (!this.state.modifiers().unlockedBuildings.has(id)) return 'Bâtiment non débloqué';
     if (this.state.constructionQueue().length >= CONSTRUCTION_QUEUE_MAX) return 'Un chantier est déjà en cours';
+    if (def.maxCount !== undefined && (this.state.buildings()[id] ?? 0) + (this.state.pendingBuildings()[id] ?? 0) >= def.maxCount) {
+      return 'Déjà construit';
+    }
     const space = this.state.economy().space[def.terrain];
     if (space.used + def.size > space.total) return 'Espace insuffisant';
     if (!this.state.canAfford(this.nextBuildingCost(id))) return 'Ressources insuffisantes';
@@ -178,17 +187,22 @@ export class GameEngineService {
     return this.buildBlocker(id) === null;
   }
 
+  /** Durée de construction (ou de démolition), réduite par les améliorations du marchand. */
+  buildDuration(id: BuildingId): number {
+    return Math.ceil(BUILDINGS_BY_ID[id].buildTime * this.state.modifiers().buildTime);
+  }
+
   /** Paie le bâtiment et l'ajoute à la file de construction. */
   build(id: BuildingId): boolean {
     if (!this.canBuild(id)) return false;
-    const def = BUILDINGS_BY_ID[id];
+    const duration = this.buildDuration(id);
     const paid = this.nextBuildingCost(id);
     this.state.spend(paid);
     const queue = this.state.constructionQueue();
     const uid = queue.reduce((max, job) => Math.max(max, job.uid), 0) + 1;
     this.state.constructionQueue.set([
       ...queue,
-      { uid, kind: 'build', building: id, remaining: def.buildTime, total: def.buildTime, paid },
+      { uid, kind: 'build', building: id, remaining: duration, total: duration, paid },
     ]);
     return true;
   }
@@ -204,12 +218,12 @@ export class GameEngineService {
   /** Lance la démolition d'un exemplaire : même durée que sa construction, sans remboursement. */
   demolish(id: BuildingId): boolean {
     if (this.demolishBlocker(id) !== null) return false;
-    const def = BUILDINGS_BY_ID[id];
+    const duration = this.buildDuration(id);
     const queue = this.state.constructionQueue();
     const uid = queue.reduce((max, job) => Math.max(max, job.uid), 0) + 1;
     this.state.constructionQueue.set([
       ...queue,
-      { uid, kind: 'demolish', building: id, remaining: def.buildTime, total: def.buildTime, paid: {} },
+      { uid, kind: 'demolish', building: id, remaining: duration, total: duration, paid: {} },
     ]);
     return true;
   }
