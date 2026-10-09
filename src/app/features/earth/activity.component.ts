@@ -22,27 +22,25 @@ interface Activity {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (activities().length > 0) {
-      <section class="panel">
-        <h3>⏳ En cours</h3>
-        <ul>
-          @for (a of activities(); track a.kind) {
-            <li [attr.data-kind]="a.kind" [class.demolish]="a.label === 'Démolition'">
-              <div class="row">
-                <span class="label">{{ a.label }}</span>
-                <span class="mono time">{{ a.remaining }}</span>
-                <button class="btn btn-ghost cancel" (click)="cancel(a.kind)" title="Annuler">✕</button>
-              </div>
-              <div class="name">{{ a.icon }} {{ a.name }}</div>
-              <div class="progress"><div [style.width.%]="a.progress"></div></div>
-            </li>
-          }
-        </ul>
-      </section>
+      <ul aria-label="En cours">
+        @for (a of activities(); track a.kind) {
+          <li [attr.data-kind]="a.kind" [class.demolish]="a.label === 'Démolition'">
+            <div class="row">
+              <span class="label">⏳ {{ a.label }}</span>
+              <span class="mono time">{{ a.remaining }}</span>
+              <button class="btn btn-ghost cancel" (click)="cancel(a.kind)" title="Annuler">✕</button>
+            </div>
+            <div class="name">{{ a.icon }} {{ a.name }}</div>
+            <div class="progress"><div [style.width.%]="a.progress"></div></div>
+          </li>
+        }
+      </ul>
     }
   `,
   styles: `
-    ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; }
-    li { padding: 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border-left: 3px solid var(--accent); }
+    /* Bandeau horizontal : une case par activité en cours, côte à côte. */
+    ul { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; font-size: 0.85rem; }
+    li { padding: 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border-left: 3px solid var(--accent); min-width: 0; }
     li[data-kind='research'] { border-left-color: var(--accent-2); }
     li.demolish { border-left-color: var(--danger); }
     li.demolish .progress > div { background: var(--danger); }
@@ -53,7 +51,7 @@ interface Activity {
     .label { flex: 1; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
     .time { color: var(--accent); white-space: nowrap; }
     .cancel { padding: 0 6px; font-size: 0.75rem; }
-    .name { margin: 2px 0 6px; }
+    .name { margin: 2px 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   `,
 })
 export class ActivityComponent {

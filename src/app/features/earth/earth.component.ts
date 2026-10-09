@@ -5,13 +5,12 @@ import { TerrainId } from '../../core/models/game.models';
 import { GameStateService } from '../../core/services/game-state.service';
 import { EventLogComponent } from '../../shared/event-log.component';
 import { BuildingCardComponent } from './building-card.component';
-import { ActivityComponent } from './activity.component';
 import { WorkforcePanelComponent } from './workforce-panel.component';
 
 @Component({
   selector: 'app-earth',
   standalone: true,
-  imports: [ActivityComponent, BuildingCardComponent, EventLogComponent, WorkforcePanelComponent],
+  imports: [BuildingCardComponent, EventLogComponent, WorkforcePanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="layout">
@@ -35,8 +34,6 @@ import { WorkforcePanelComponent } from './workforce-panel.component';
       </div>
 
       <aside class="side">
-        <app-activity />
-
         <section class="panel">
           <h3>🗺️ Espaces naturels</h3>
           <p class="muted planet-desc" [title]="planet().description">

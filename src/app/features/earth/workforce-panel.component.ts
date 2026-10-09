@@ -5,6 +5,7 @@ import { GatherTaskId } from '../../core/models/game.models';
 import { GameEngineService } from '../../core/services/game-engine.service';
 import { GameStateService } from '../../core/services/game-state.service';
 import { FormatNumberPipe } from '../../shared/format-number.pipe';
+import { ActivityComponent } from './activity.component';
 
 const EXPANDED_KEY = 'galaxyexplorer.ui.tasksExpanded';
 
@@ -20,18 +21,19 @@ function readExpanded(): boolean {
 @Component({
   selector: 'app-workforce-panel',
   standalone: true,
-  imports: [FormatNumberPipe],
+  imports: [ActivityComponent, FormatNumberPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="panel">
       <h3>👥 Répartition des habitants</h3>
+      <app-activity />
       <div class="summary">
         <span class="chip">👥 {{ population() | fmt: 'int' }} habitants</span>
         @if (e().jobs > 0) {
           <span class="chip" [class.short]="e().workforce < 1">👷 {{ e().buildingWorkers | fmt: 'int' }} / {{ e().jobs | fmt: 'int' }} dans les bâtiments</span>
         }
         <span class="chip">🧺 {{ e().gatherersTotal | fmt: 'int' }} / {{ e().freePopulation | fmt: 'int' }} libres à la récolte</span>
-        <span class="chip" [class.idle]="e().idle > 0">💤 {{ e().idle | fmt: 'int' }} inactifs</span>
+        <span class="chip" [class.idle-warn]="e().idle >= 1 && e().idle <= 10" [class.idle-danger]="e().idle > 10">💤 {{ e().idle | fmt: 'int' }} inactifs</span>
       </div>
 
       <div class="gather">
@@ -107,7 +109,9 @@ function readExpanded(): boolean {
     .gather-btn small { color: var(--success); font-variant-numeric: tabular-nums; }
     .summary { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
     .chip.short { color: var(--warning); }
-    .chip.idle { color: var(--muted); }
+    /* Inactifs : orange de 1 à 10, rouge au-delà. */
+    .chip.idle-warn { color: var(--warning); border-color: rgba(251, 191, 36, 0.4); }
+    .chip.idle-danger { color: var(--danger); border-color: rgba(248, 113, 113, 0.45); }
     .toggle {
       display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%;
       padding: 6px 0; margin-bottom: 8px; background: none; border: none; color: var(--text);
